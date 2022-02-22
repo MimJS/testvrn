@@ -5,13 +5,12 @@
 Function info :
 name - getSimpleNumber
 async - false
-version - 1.0
+version - 2.0
 
 Function props : 
-name | type | default value | value require | value possible | description
-startNum | number \ string | - | number or number in string or two number in string after comma ( ex. '5,123' ) | min 2 | number from or to or range of numbers to get primary numbers
-dir | number | 0 | number | 0 or 1 | direction: 0 inc, 1 desc
-arrayView | boolean | true | true or false | return data in array or string
+name     | type            | value require                  | value possible | description
+startNum | number \ array  | number or array of two numbers | min 2          | number from or to or range of numbers to get primary numbers
+dir      | number          | number                         | 0 or 1         | direction: 0 inc, 1 desc
 
 Author : 
 MimJS
@@ -29,84 +28,124 @@ https://github.com/mimjs/testvrn
 
 */
 
-const getSimpleNumber = (startNum, dir = 0, arrayView = true) => {
+const checkValues = (startNum, dir) => {
   // check props type and value
   // check dir value
   if (typeof dir != "number" || dir < 0 || dir > 1) {
     throw new Error("dir is invalid. dir can be 0 or 1");
   }
-  // check startNum value if is number
-  if (startNum < 2) {
-    throw new Error("startNum is invalid. startNum can be more or equal 2");
+  // check startNum value
+  if (typeof startNum != "number" && !Array.isArray(startNum)) {
+    throw new Error("startNum is invalid. startNum can be string or array");
   }
-  // check startNum value if is string
-  if (typeof startNum === "string") {
-    // check if startNum string is number in string
-    if (!startNum.includes(",")) {
-      if (!isNaN(Number(startNum))) {
-        startNum = Number(Number);
-      } else {
+  if (Array.isArray(startNum)) {
+    // array length < 2 or > 2 = error
+    if (startNum.length != 2) {
+      throw new Error(
+        "Data in array startNum is invalid. Data length in array startNum can be only two numbers"
+      );
+    }
+    // check numbers in array
+    startNum.forEach((v, i) => {
+      // check if is not number
+      if (typeof v != "number") {
         throw new Error(
-          "startNum is invalid. startNum can be number or number in string"
+          "Data in array startNum is invalid. Data in array startNum can be only number"
         );
       }
-    } else {
-      // get all numbers in array from startNum
-      const numArray = startNum.split(",");
-      // check length and value of data in array numArray
-      if (
-        numArray.length < 0 ||
-        numArray.length > 2 ||
-        numArray[0].length == 0 ||
-        numArray[1].length == 0
-      ) {
+      // check if is float
+      if (!Number.isInteger(v)) {
         throw new Error(
-          "startNum is invalid. startNum can be one or two numbers"
+          "Data in array startNum is invalid. Data in array startNum can't be float"
         );
       }
-      // check values of array numArray
-      if (Number(numArray[0]) < 2 || Number(numArray[1]) < 2) {
-        throw new Error("startNum is invalid. startNum can be more or equal 2");
+      // check if value < 2
+      if (v < 2) {
+        throw new Error(
+          "Data in array startNum is invalid. Data in array startNum can be more or equal 2"
+        );
       }
-      // reverse array if first value is bigger than second in array numArray
-      if (Number(numArray[0]) > Number(numArray[1])) {
-        startNum = [numArray[1], numArray[0]];
-      } else {
-        startNum = numArray;
+    });
+    // sort array ( [234,2] => [2,234] )
+    startNum.sort((a, b) => {
+      if (b > a) {
+        return -1;
       }
-      // reverse array numArray if dir = 1 ( true )
-      if (dir) {
-        startNum.reverse();
-      }
+    });
+    // reverse if dir = desc
+    if (dir) {
+      startNum.reverse();
+    }
+  } else {
+    // check if is float
+    if (!Number.isInteger(startNum)) {
+      throw new Error("startNum is invalid. startNum can't be float");
+    }
+    // check if value < 2
+    if (startNum < 2) {
+      throw new Error("startNum is invalid. startNum can be more or equal 2");
     }
   }
+  return { startNum, dir };
+};
+
+const getSimpleNumber = (start, direction) => {
+  // check params in function
+  const { startNum, dir } = checkValues(start, direction);
   // primary numbers array
   const numbers = [];
-  // data for cycle
+  // default value for dir = 1 if startNum isn't array
+  const defaultDescValue = [startNum, 2];
+  // default value for dir = 0 if startNum isn't array
+  const defaultIncValue = [startNum, startNum + 100];
+  // init data for cycle
   const [initNum, finishNum] = Array.isArray(startNum)
     ? startNum
     : dir
-    ? [startNum, 2]
-    : [startNum, startNum + 200];
-  // label for cycle
-  nextPrime: for (
-    let i = Math.floor(Number(initNum) - Number(dir ? 1 : -1));
-    dir ? i > Math.floor(Number(finishNum)) : i < Math.floor(Number(finishNum));
-    dir ? i-- : i++
-  ) {
+    ? defaultDescValue
+    : defaultIncValue;
+  // cycle consts
+  let i = initNum - Number(dir ? 1 : -1);
+  let length = dir ? i > finishNum : i < finishNum;
+  const forOperation = () => {
+    dir ? i-- : i++;
+  };
+  // label for for cycle
+  nextPrime: for (i; length; ) {
     // check if in array numbers have 3 numbers for return they and close cycle
     if (numbers.length === 3) {
-      return arrayView ? numbers : numbers.join(",");
+      return numbers;
     }
+    // inc or desc i
+    forOperation();
+    // check if number is primary
     for (let j = 2; j < i; j++) {
       if (i % j == 0) continue nextPrime;
     }
-    numbers.push(i);
+    // check if numbers contain this number
+    if (numbers.indexOf(i) === -1) {
+      // add number to array
+      numbers.push(i);
+    }
   }
+  // if array numbers length < 3
   return "Count of simple numbers is less of 3";
 };
 
-console.log(getSimpleNumber("3,50", 0, true));
-console.log(getSimpleNumber(5, 0, true));
-console.log(getSimpleNumber(4000000, 1));
-console.log(getSimpleNumber("4,40000000", 1, true));
+console.log(getSimpleNumber([2, 20], 1)); // success
+console.log(getSimpleNumber([2, 20], 0)); // success
+console.log(getSimpleNumber([454, 12], 0)); // success
+console.log(getSimpleNumber([454, 12], 1)); // success
+console.log(getSimpleNumber(34, 1)); // success
+console.log(getSimpleNumber(34, 0)); // success
+// console.log(getSimpleNumber([3],0)) // error
+// console.log(getSimpleNumber([3.324],0)) // error
+// console.log(getSimpleNumber([0],0)) // error
+// console.log(getSimpleNumber([0,43],0)) // error
+// console.log(getSimpleNumber([3,2,3],0)) // error
+// console.log(getSimpleNumber([],0)) // error
+// console.log(getSimpleNumber([3.234,12312],0)) // error
+// console.log(getSimpleNumber('3',0)) // error
+// console.log(getSimpleNumber(-1,0)) // error
+// console.log(getSimpleNumber(1,0)) // error
+// console.log(getSimpleNumber({},0)) // error
